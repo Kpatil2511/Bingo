@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Online Bingo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #050517; /* Dark background */
+            color: #f0f0f0; /* Light text */
+            margin: 0;
+            padding: 0;
+            min-height: 100vh; /* Ensure body takes full viewport height */
+            overflow-x: hidden; /* Prevent horizontal scroll */
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+
+        /* Styling for the new image title */
+        #bingo_title_image {
+            max-width: 100%; /* Ensure image is responsive */
+            height: auto;    /* Maintain aspect ratio */
+            width: 300px;      /* Adjust width to maintain aspect ratio within constraints */
+            height: 125px;     /* Adjust height to maintain aspect ratio within constraints */
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 15px rgba(255, 64, 129, 0.8)); /* Add a glow effect matching the theme */
+        }
+
+        h3 {
+            color: #64FFDA; /* Neon teal */
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px #64FFDA; /* Glow effect */
+            font-size: 1.5em;
+        }
+
+        /* Mode Selection */
+        #mode-selection {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+            justify-content: center;
+        }
+
+        /* Game Instructions */
+        #game-instructions {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 2px solid #E040FB; /* Neon magenta border */
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 0 20px rgba(224, 64, 251, 0.5);
+            text-align: center;
+            box-sizing: border-box;
+        }
+        #game-instructions h2 {
+            color: #FFD700; /* Neon gold */
+            text-shadow: 0 0 8px #FFD700;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+        #game-instructions p {
+            font-size: 1em;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        #game-instructions ul {
+            list-style: none; /* Remove default bullet points */
+            padding: 0;
+            margin: 0;
+            text-align: left;
+            margin-left: 20px;
+        }
+        #game-instructions ul li {
+            margin-bottom: 8px;
+            position: relative;
+            padding-left: 20px; /* Space for custom bullet */
+            color: #f0f0f0;
+        }
+        #game-instructions ul li::before {
+            content: '•'; /* Custom bullet point */
+            color: #1DE9B6; /* Neon green bullet */
+            font-size: 1.2em;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+
+        /* Room Options */
+        #room-options {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.1); /* Translucent white */
+            border: 2px solid #4A148C; /* Neon purple border */
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(74, 20, 140, 0.5); /* Glow effect */
+            width: 90%; /* Responsive width */
+            max-width: 500px; /* Max width for larger screens */
+            box-sizing: border-box;
+        }
+
+        #room-options div {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap; /* Allow elements inside to wrap */
+            justify-content: center;
+        }
+
+        #player-name-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        #player-name-input,
+        #room-id-input {
+            padding: 10px;
+            border: 2px solid #1DE9B6; /* Neon green border */
+            border-radius: 8px;
+            background-color: rgba(0, 0, 0, 0.3); /* Translucent dark */
+            color: #f0f0f0;
+            font-size: 1em;
+            width: 100%; /* Make inputs fluid */
+            max-width: 250px; /* Limit max width */
+            box-sizing: border-sizing;
+        }
+
+        #room-message {
+            color: #FFAB40; /* Neon orange */
+            font-weight: bold;
+            margin-top: 10px;
+            text-align: center;
+            text-shadow: 0 0 8px #FF4081; /* Glow effect */
+        }
+
+        /* Game Area */
+        #game-area {
+            display: none;
+            flex-direction: row;
+            gap: 30px;
+            margin-top: 20px;
+            justify-content: center;
+            width: 90%; /* Responsive width */
+            max-width: 900px;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.1); /* Translucent white */
+            border: 2px solid #4A148C; /* Neon purple border */
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(74, 20, 140, 0.5); /* Glow effect */
+            flex-wrap: wrap; /* Allow boards to wrap on smaller screens */
+            position: relative; /* Added for absolute positioning of play-again-response-options */
+            box-sizing: border-box;
+        }
+
+        #player1-board-container, #player2-board-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            min-width: 280px; /* Minimum width for boards */
+            margin: 10px; /* Add some margin for spacing */
+            box-sizing: border-box;
+        }
+
+        /* Bingo Board */
+        .board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-gap: 10px;
+            border: 2px solid #E040FB; /* Neon magenta border */
+            padding: 10px;
+            border-radius: 12px;
+            background-color: rgba(0, 0, 0, 0.5); /* Translucent dark */
+            width: 100%; /* Make board fill its container */
+            max-width: 320px; /* Limit max width for a single board */
+            margin-bottom: 15px;
+            box-shadow: 0 0 15px rgba(224, 64, 251, 0.3); /* Soft glow */
+            box-sizing: border-box;
+        }
+
+        .cell {
+            width: 100%; /* Make cells fluid within their grid column */
+            padding-top: 100%; /* Create square cells based on width */
+            position: relative; /* For content positioning */
+            border: 2px solid #1DE9B6; /* Neon green border */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            font-weight: bold;
+            background-color: #050517; /* Dark cell background */
+            color: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 0 8px #1DE9B6; /* Glow effect */
+            box-sizing: border-box;
+        }
+
+        .cell span { /* For centering text in fluid cells */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .cell.input {
+            background-color: rgba(255, 255, 255, 0.1); /* Translucent input background */
+            font-size: 16px;
+            color: #f0f0f0; /* Ensure input text is visible */
+            padding: 0; /* Remove padding for inputs */
+        }
+        .cell.input input { /* Style for the actual input element inside the cell */
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            color: inherit;
+            font-size: inherit;
+            text-align: center;
+            box-sizing: border-box;
+            padding: 5px; /* Add some padding inside the input */
+        }
+
+
+        .cell:hover:not(.called):not(.invalid-input):not(.disabled) {
+            background-color: #64FFDA; /* Neon teal hover */
+            color: #050517;
+            transform: translateY(-3px); /* Increased lift effect */
+            box-shadow: 0 5px 15px rgba(0, 255, 218, 0.4); /* Stronger hover glow */
+        }
+
+        .cell.called {
+            background-color: #FF4081 !important; /* Neon pink called */
+            color: #050517 !important;
+            font-weight: normal;
+            cursor: default;
+            box-shadow: inset 0 0 10px rgba(255, 64, 129, 0.5); /* Inset glow */
+        }
+
+        .bingo-line {
+            background-color: #FFD700 !important; /* Neon gold bingo */
+            color: #050517 !important;
+            box-shadow: 0 0 20px #FFD700, 0 0 30px #FFD700; /* Intense glow */
+            border: 3px solid #00E676 !important; /* Neon light green border */
+        }
+
+        .cell.disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .invalid-input {
+            background-color: rgba(255, 0, 0, 0.2); /* Red translucent */
+            border-color: #FF5252; /* Neon red border */
+            color: #FF5252;
+        }
+
+        /* Game Status */
+        #game-status {
+            margin-top: 20px;
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            width: 100%;
+            color: #64FFDA; /* Neon teal */
+            text-shadow: 0 0 10px #64FFDA; /* Glow */
+        }
+
+        /* Buttons */
+        #start-game-button, #mode-selection button, #room-options button, .submit-button-container button, #post-game-options button, #play-again-response-options button {
+            padding: 12px 25px;
+            font-size: 18px;
+            background-color: #2962FF; /* Neon blue */
+            color: #f0f0f0;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(41, 98, 255, 0.5); /* Stronger shadow */
+            transition: all 0.3s ease-in-out;
+            margin: 5px; /* Add margin for spacing between buttons */
+        }
+
+        #start-game-button:hover:not(:disabled),
+        #mode-selection button:hover:not(:disabled),
+        #room-options button:hover:not(:disabled),
+        .submit-button-container button:hover:not(:disabled),
+        #post-game-options button:hover:not(:disabled),
+        #play-again-response-options button:hover:not(:disabled) {
+            background-color: #651FFF; /* Neon purple hover */
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(101, 31, 255, 0.7); /* Stronger hover shadow */
+        }
+
+        #start-game-button:disabled,
+        #mode-selection button:disabled,
+        #room-options button:disabled,
+        .submit-button-container button:disabled,
+        #post-game-options button:disabled,
+        #play-again-response-options button:disabled {
+            background-color: #616161;
+            color: #BDBDBD;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Bingo Progress */
+        #local-player-bingo-progress, #remote-player-bingo-progress {
+            font-size: 1.1em; /* Slightly larger font */
+            font-weight: bold;
+            color: #F4FF81; /* Neon yellow */
+            margin-top: 5px;
+            text-shadow: 0 0 8px #F4FF81; /* Glow */
+        }
+
+        /* Submit Button Container */
+        /* This container will be dynamically added/removed, so we don't need to explicitly hide it here */
+        .submit-button-container {
+            margin-top: 15px;
+            width: 100%;
+            text-align: center;
+        }
+
+        /* Room ID Display */
+        #room-id-display {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #1DE9B6; /* Neon green */
+            text-align: center;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.4); /* Translucent dark */
+            border-radius: 8px;
+            border: 2px solid #64FFDA; /* Neon teal border */
+            box-shadow: 0 0 10px #64FFDA; /* Glow */
+        }
+
+        /* Post Game Options */
+        #post-game-options {
+            display: none;
+            margin-top: 20px;
+            gap: 20px;
+            flex-wrap: wrap; /* Allow buttons to wrap */
+            justify-content: center;
+        }
+
+        /* Play Again Response Options */
+        #play-again-response-options {
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 2px solid #FFAB40; /* Neon orange border */
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(255, 171, 64, 0.5);
+            /* New positioning for overlay */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 500; /* Ensure it's above other game area elements but below modal */
+            width: 80%;
+            max-width: 400px;
+            box-sizing: border-box;
+        }
+
+        #play-again-response-options p {
+            color: #f0f0f0;
+            font-size: 1.1em;
+            text-align: center;
+            text-shadow: 0 0 5px #f0f0f0;
+        }
+
+        #play-again-response-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7); /* Darker overlay */
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #1A237E; /* Dark modal background */
+            margin: auto;
+            padding: 20px;
+            border: 2px solid #FF4081; /* Neon pink border */
+            width: 80%;
+            max-width: 400px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 64, 129, 0.5); /* Modal glow */
+            text-align: center;
+            position: relative;
+            color: #f0f0f0;
+            box-sizing: border-box;
+        }
+
+        .close-button {
+            color: #f0f0f0;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            text-shadow: 0 0 5px #f0f0f0;
+        }
+
+        .modal-title {
+            margin-bottom: 15px;
+            color: #FFD700; /* Neon gold */
+            text-shadow: 0 0 8px #FFD700;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-ok-button {
+            padding: 10px 20px;
+            background-color: #2962FF; /* Neon blue */
+            color: #f0f0f0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(41, 98, 255, 0.4);
+            transition: background-color 0.3s ease;
+        }
+
+        .modal-ok-button:hover {
+            background-color: #651FFF; /* Neon purple */
+        }
+
+        /* Footer Styles */
+        footer {
+            margin-top: auto; /* Pushes footer to the bottom */
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.3); /* Slightly transparent dark background */
+            width: 100%;
+            text-align: center;
+            color: #B0BEC5; /* Light grey text */
+            font-size: 0.9em;
+            border-top: 1px solid rgba(100, 255, 218, 0.2); /* Subtle neon border top */
+            box-sizing: border-box;
+        }
+
+        footer p {
+            margin: 5px 0;
+        }
+
+        footer a {
+            color: #64FFDA; /* Neon teal for links */
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+
+        footer a:hover {
+            color: #1DE9B6; /* Lighter neon green on hover */
+            text-decoration: underline;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #game-area {
+                flex-direction: column;
+                align-items: center;
+            }
+            #player1-board-container, #player2-board-container {
+                min-width: unset; /* Remove min-width on smaller screens */
+                width: 100%; /* Allow boards to take full width */
+            }
+            .board {
+                width: 100%; /* Make boards fill container */
+                max-width: 320px; /* Max width for a single board */
+            }
+            .cell {
+                /* Adjust cell size for mobile while maintaining aspect ratio */
+                font-size: 16px; /* Smaller font for smaller cells */
+            }
+            .cell.input {
+                font-size: 14px;
+            }
+            /* Adjust image size for smaller screens */
+            #bingo_title_image { /* Corrected ID from bingo-title-image */
+                width: 80%; /* Smaller width on mobile */
+                height: auto;
+            }
+            h1 { /* This element doesn't exist, but keeping for completeness if added later */
+                font-size: 2em;
+            }
+            h3 {
+                font-size: 1.3em; /* Smaller h3 on mobile */
+            }
+            #game-status {
+                font-size: 1.1em;
+            }
+            #room-id-display {
+                font-size: 1em;
+            }
+            #player-name-input, #room-id-input {
+                font-size: 0.9em;
+                padding: 8px;
+            }
+            #mode-selection button, #room-options button, .submit-button-container button, #post-game-options button, #play-again-response-options button {
+                padding: 10px 20px;
+                font-size: 16px;
+            }
+            #game-instructions {
+                padding: 15px;
+            }
+            #game-instructions h2 {
+                font-size: 1.5em;
+            }
+            #game-instructions p, #game-instructions ul li {
+                font-size: 0.9em;
+            }
+        }
+        @media (max-width: 480px) {
+            .cell {
+                font-size: 14px;
+            }
+            .cell.input {
+                font-size: 12px;
+            }
+            #bingo_title_image {
+                width: 70%;
+            }
+            #game-instructions h2 {
+                font-size: 1.3em;
+            }
+            #game-instructions p, #game-instructions ul li {
+                font-size: 0.85em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <img id="bingo_title_image" src="/static/bingo_title_image.png" alt="Online Bingo Title" onerror="this.onerror=null; this.src='https://placehold.co/300x100/FF4081/FFFFFF?text=BINGO+IMAGE+ERROR'; console.error('Image failed to load: bingo_title_image.png. Please check filename and path.');">
+
+    <!-- New Game Instructions Section -->
+    <div id="game-instructions">
+        <h2>How to Play Bingo</h2>
+        <p>Welcome to Online Bingo! Here's how to play:</p>
+        <ul>
+           
+            <li>**Build Your Board:** Both players must enter 25 unique numbers (1-25) into their 5x5 Bingo board.</li>
+            <li>**Call Numbers:** During your turn, click a number on your board to call it. This number will be marked on both players' boards.</li>
+            <li>**BINGO!** Get 5 marked numbers in a row (horizontally, vertically, or diagonally) to get a Bingo line. The first player to get 5 Bingo lines wins!</li>
+            <li>**Play Again:** After a game, you can request to play again with your opponent.</li>
+        </ul>
+        <p>Good luck and have fun!</p>
+    </div>
+
+    <div id="mode-selection">
+        <button id="play-local">Play Local</button>
+        <button id="play-online">Play Online</button>
+    </div>
+
+    <div id="room-options">
+        <div id="player-name-container">
+            <label for="player-name-input" style="color: #f0f0f0; text-shadow: 0 0 5px #f0f0f0;">Your Name:</label>
+            <input type="text" id="player-name-input" placeholder="Enter your name" value="Player">
+        </div>
+        <button id="create-room-btn">Create Room</button>
+        <div>
+            <label for="room-id-input" style="color: #f0f0f0; text-shadow: 0 0 5px #f0f0f0;">Join Room ID:</label>
+            <input type="text" id="room-id-input" placeholder="Enter Room ID">
+            <button id="join-room-btn">Join</button>
+        </div>
+        <div id="room-message"></div>
+    </div>
+
+    <div id="game-area">
+        <div id="game-info-container" style="display: none; flex-direction: column; align-items: center; width: 100%; margin-top: 20px;">
+            <div id="room-id-display"></div>
+            <div id="game-status"></div>
+            <button id="start-game-button" style="display: none;">Start Game</button>
+        </div>
+
+        <div id="play-again-response-options">
+            <p id="play-again-request-message"></p>
+            <div id="play-again-response-buttons">
+                <button id="accept-play-again-btn">Accept</button>
+                <button id="reject-play-again-btn">Reject</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="post-game-options">
+        <button id="view-opponent-board-btn" style="display: none;">View Opponent's Board</button>
+        <button id="play-again-btn" style="display: none;">Play Again</button>
+    </div>
+
+
+    <div id="message-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2 id="modal-title" class="modal-title"></h2>
+            <p id="modal-body" class="modal-body"></p>
+            <button id="modal-ok-button" class="modal-ok-button">OK</button>
+        </div>
+    </div>
+
+    <audio id="number-call-sound" src="/static/number_call.mp3" preload="auto"></audio>
+    <audio id="bingo-sound" src="/static/bingo_win.mp3" preload="auto"></audio>
+    <audio id="lose-sound" src="/static/game_lose.mp3" preload="auto"></audio>
+
+    <footer>
+        <p>&copy; 2025 Khel Bingo. Developed by<b> Kanhaiya Ishwar Patil.</b></p>
+        <p>To get the Daily Dose of Comedy</p>
+        <p>
+            <a href="https://www.instagram.com/kp25.11/" target="_blank" rel="noopener noreferrer">Instagram</a> |
+            <a href="https://www.youtube.com/@PatilKanhaiya" target="_blank" rel="noopener noreferrer">YouTube</a>
+        </p>
+    </footer>
+
+
+    {% raw %}
+    <script>
+        const socket = io();
+        const modeSelection = document.getElementById('mode-selection');
+        const roomOptions = document.getElementById('room-options');
+        const createRoomBtn = document.getElementById('create-room-btn');
+        const joinRoomBtn = document.getElementById('join-room-btn');
+        const roomIdInput = document.getElementById('room-id-input');
+        const playerNameInput = document.getElementById('player-name-input');
+        const roomMessage = document.getElementById('room-message');
+        const gameArea = document.getElementById('game-area');
+        const gameInfoContainer = document.getElementById('game-info-container');
+        const gameStatusDiv = document.getElementById('game-status');
+        const postGameOptionsDiv = document.getElementById('post-game-options');
+        const viewOpponentBoardBtn = document.getElementById('view-opponent-board-btn');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const gameInstructionsDiv = document.getElementById('game-instructions'); // New instruction div reference
+
+        // New elements for Play Again response
+        const playAgainResponseOptionsDiv = document.getElementById('play-again-response-options');
+        const playAgainRequestMessage = document.getElementById('play-again-request-message');
+        const acceptPlayAgainBtn = document.getElementById('accept-play-again-btn');
+        const rejectPlayAgainBtn = document.getElementById('reject-play-again-btn');
+
+        // Get references to the audio elements
+        const numberCallSound = document.getElementById('number-call-sound');
+        const bingoSound = document.getElementById('bingo-sound');
+        const loseSound = document.getElementById('lose-sound');
+
+        let startGameButton;
+        let playerSid;
+        let currentRoomId;
+        let isHost = false;
+        let currentTurnSid = null;
+        let localPlayerBoardData = [];
+        let remotePlayerBoardData = [];
+        let calledNumbers = new Set();
+        let localPlayerMarked = Array(5).fill(0).map(() => Array(5).fill(false));
+        let remotePlayerMarked = Array(5).fill(0).map(() => Array(5).fill(false));
+        let playerNames = {};
+        let playAgainRequesterSid = null; // To store who requested play again
+
+        const modal = document.getElementById('message-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalOkButton = document.getElementById('modal-ok-button');
+        const closeButton = document.querySelector('.close-button');
+
+        function displayMessage(title, message) {
+            modalTitle.innerText = title;
+            modalBody.innerText = message;
+            modal.style.display = 'flex';
+        }
+
+        // Default modal button behavior (used when no specific behavior is assigned)
+        modalOkButton.onclick = () => modal.style.display = 'none';
+        closeButton.onclick = () => modal.style.display = 'none';
+
+
+        socket.on('connect', () => {
+            playerSid = socket.id;
+            console.log('Connected client SID:', playerSid);
+        });
+
+        /**
+         * Updates the display of a Bingo board.
+         * @param {HTMLElement} boardDiv - The HTML element representing the board.
+         * @param {number[]} values - An array of numbers for the board cells.
+         * @param {boolean} isClickable - True if cells should be clickable (for current player's turn).
+         * @param {boolean} currentTurn - True if it's the current player's turn.
+         * @param {Set<number>} currentCalledNumbers - The set of numbers called so far.
+         */
+        function updateBoardDisplay(boardDiv, values, isClickable = false, currentTurn = false, currentCalledNumbers = calledNumbers) {
+            boardDiv.innerHTML = '';
+            values.forEach((num, index) => {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                const span = document.createElement('span'); // Use span for centering text
+                span.innerText = num;
+                cell.appendChild(span);
+                cell.dataset.number = num;
+                cell.dataset.index = index;
+
+                const isCalled = currentCalledNumbers.has(parseInt(num));
+                if (isCalled) {
+                    cell.classList.add('called');
+                    cell.classList.add('disabled');
+                } else if (isClickable && currentTurn) {
+                    cell.classList.remove('disabled');
+                    cell.classList.add('clickable');
+                    cell.addEventListener('click', () => {
+                        socket.emit('call_number_from_board', { number: parseInt(num) });
+                    });
+                } else {
+                    cell.classList.add('disabled');
+                    cell.classList.remove('clickable');
+                    cell.onclick = null;
+                }
+                boardDiv.appendChild(cell);
+            });
+
+            if (boardDiv.id === 'local-player-board') {
+                setTimeout(() => {
+                    highlightBingoLines();
+                }, 100);
+            }
+        }
+
+        /**
+         * Displays a placeholder board for the opponent during active gameplay.
+         * This hides the opponent's actual numbers for privacy.
+         * @param {HTMLElement} boardDiv - The HTML element representing the opponent's board.
+         */
+        function displayOpponentPlaceholderBoard(boardDiv) {
+            boardDiv.innerHTML = '';
+            boardDiv.classList.add('board');
+            for (let i = 0; i < 25; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.classList.add('disabled');
+                cell.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                cell.innerText = ''; // No text for placeholder
+                boardDiv.appendChild(cell);
+            }
+        }
+
+        /**
+         * Renders a board with its actual numbers and marked status. Used for post-game viewing.
+         * @param {HTMLElement} boardDiv - The HTML element for the board.
+         * @param {number[]} boardValues - The actual numbers on the board.
+         * @param {boolean[][]} markedValues - The 2D array indicating marked cells.
+         * @param {Set<number>} currentCalledNumbers - The set of all numbers called in the game.
+         */
+        function renderFinalBoard(boardDiv, boardValues, markedValues, currentCalledNumbers) {
+            boardDiv.innerHTML = '';
+            boardDiv.classList.add('board');
+            boardValues.forEach((num, index) => {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                const span = document.createElement('span'); // Use span for centering text
+                span.innerText = num;
+                cell.appendChild(span);
+                cell.dataset.number = num;
+                cell.dataset.index = index;
+                cell.classList.add('disabled');
+
+                const row = Math.floor(index / 5);
+                const col = index % 5;
+
+                if (markedValues[row][col]) {
+                    cell.classList.add('called');
+                }
+                boardDiv.appendChild(cell);
+            });
+
+            // Temporarily set global variables for highlightBingoLines to work
+            const originalLocalPlayerMarked = localPlayerMarked;
+            localPlayerMarked = markedValues;
+            const originalLocalBoardData = localPlayerBoardData;
+            localPlayerBoardData = boardValues;
+            const originalCalledNumbers = calledNumbers;
+            calledNumbers = currentCalledNumbers;
+            highlightBingoLines();
+            // Restore original global variables
+            localPlayerMarked = originalLocalPlayerMarked;
+            localPlayerBoardData = originalLocalBoardData;
+            calledNumbers = originalCalledNumbers;
+        }
+
+        /**
+         * Creates an input-enabled Bingo board for initial setup or a display-only board.
+         * @param {HTMLElement} boardDiv - The HTML element for the board.
+         * @param {number} playerId - Identifier for the player (e.g., 1 or 2).
+         * @param {boolean} isInput - True if cells should be input fields, false for display.
+         * @param {number[]} initialValues - Optional array of numbers to pre-fill the board.
+         */
+        function createBingoBoard(boardDiv, playerId, isInput = true, initialValues = []) {
+            boardDiv.innerHTML = '';
+            boardDiv.classList.add('board');
+            const inputs = [];
+            const messageDiv = document.getElementById(`board-${playerId}-message`);
+            if (messageDiv) messageDiv.innerText = '';
+
+            boardDiv.tabIndex = 0;
+            boardDiv.style.outline = 'none';
+
+            for (let i = 0; i < 25; i++) {
+                const cellWrapper = document.createElement('div'); // Wrapper for the input cell
+                cellWrapper.classList.add('cell', 'input');
+                cellWrapper.dataset.index = i;
+
+                const cell = document.createElement('input');
+                cell.type = 'text';
+                cell.maxLength = 2;
+                cell.placeholder = ''; // Optional: add placeholder if desired
+                cell.addEventListener('input', function() {
+                    const value = this.value.trim();
+                    cellWrapper.classList.remove('invalid-input'); // Remove from wrapper
+                    if (messageDiv) messageDiv.innerText = '';
+
+                    if (value === '') return;
+
+                    const num = parseInt(value);
+                    if (isNaN(num) || num < 1 || num > 25) {
+                        cellWrapper.classList.add('invalid-input'); // Add to wrapper
+                        if (messageDiv) messageDiv.innerText = 'Enter numbers between 1 and 25.';
+                    } else {
+                        const currentBoardInputs = Array.from(boardDiv.querySelectorAll('input'));
+                        const enteredValues = currentBoardInputs.map(input => input.value.trim()).filter(v => v !== '');
+                        const isDuplicate = enteredValues.filter(v => v === value).length > 1;
+                        if (isDuplicate) {
+                            cellWrapper.classList.add('invalid-input'); // Add to wrapper
+                            if (messageDiv) messageDiv.innerText = `Number ${value} has already been entered.`;
+                        }
+                    }
+                });
+                inputs.push(cell);
+                cellWrapper.appendChild(cell); // Append input to wrapper
+                boardDiv.appendChild(cellWrapper); // Append wrapper to board
+            }
+
+            boardDiv.addEventListener('keydown', (event) => {
+                const activeElement = document.activeElement;
+                if (activeElement.tagName === 'INPUT' && activeElement.parentNode.classList.contains('cell')) { // Check parent for 'cell' class
+                    const index = parseInt(activeElement.parentNode.dataset.index); // Get index from parent
+                    let nextIndex = -1;
+
+                    switch (event.key) {
+                        case 'ArrowLeft':
+                            nextIndex = index > 0 ? index - 1 : -1;
+                            break;
+                        case 'ArrowRight':
+                            nextIndex = index < 24 ? index + 1 : -1;
+                            break;
+                        case 'ArrowUp':
+                            nextIndex = index >= 5 ? index - 5 : -1;
+                            break;
+                        case 'ArrowDown':
+                            nextIndex = index < 20 ? index + 5 : -1;
+                            break;
+                        case 'Enter':
+                            nextIndex = index < 24 ? index + 1 : -1;
+                            break;
+                    }
+
+                    if (nextIndex !== -1 && inputs[nextIndex]) {
+                        inputs[nextIndex].focus();
+                        event.preventDefault();
+                    } else if (event.key === 'Enter' && nextIndex === -1 && activeElement === inputs[24]) {
+                         const submitButton = boardDiv.parentNode.querySelector('.submit-button-container button');
+                         if (submitButton && !submitButton.disabled) {
+                             submitButton.click();
+                         }
+                         event.preventDefault();
+                    }
+                } else if (document.activeElement === boardDiv) {
+                    inputs[0]?.focus();
+                    event.preventDefault();
+                }
+            });
+
+            setTimeout(() => {
+                inputs[0]?.focus();
+            }, 0);
+
+            if (isInput) {
+                const submitButtonContainer = document.createElement('div');
+                submitButtonContainer.classList.add('submit-button-container');
+
+                const submitButton = document.createElement('button');
+                submitButton.innerText = `Submit Board`;
+                submitButton.addEventListener('click', () => {
+                    const boardInputs = boardDiv.querySelectorAll('input');
+                    const boardValues = Array.from(boardInputs).map(input => input.value);
+                    const validationResult = validateBoard(boardValues);
+                    if (validationResult.valid) {
+                        const numericBoard = boardValues.map(v => parseInt(v));
+                        socket.emit('board_submitted', { board: numericBoard });
+                        submitButton.disabled = true;
+                        boardInputs.forEach(input => input.disabled = true);
+                        boardDiv.tabIndex = -1;
+                        if (messageDiv) messageDiv.innerText = 'Board submitted. Waiting for opponent.';
+                        // Hide the submit button container after submission
+                        submitButtonContainer.style.display = 'none';
+                    } else {
+                        displayMessage('Error', validationResult.message);
+                        // Ensure modal buttons are reset to default after error message
+                        modalOkButton.onclick = () => modal.style.display = 'none';
+                        closeButton.onclick = () => modal.style.display = 'none';
+                    }
+                });
+                submitButtonContainer.appendChild(submitButton);
+                boardDiv.parentNode.appendChild(submitButtonContainer);
+            }
+        }
+
+        function validateBoard(boardValues) {
+            if (boardValues.some(value => value.trim() === '')) {
+                return { valid: false, message: 'Please fill all the cells.' };
+            }
+            const numbers = boardValues.map(value => parseInt(value));
+            if (numbers.some(isNaN) || numbers.some(num => num < 1 || num > 25)) {
+                return { valid: false, message: 'Please enter numbers between 1 and 25.' };
+            }
+            const uniqueNumbers = [...new Set(numbers)];
+            if (uniqueNumbers.length !== 25) {
+                return { valid: false, message: 'Please enter 25 unique numbers.' };
+            }
+            return { valid: true };
+        }
+
+        // Function to reset UI to initial state
+        function resetUI() {
+            gameInstructionsDiv.style.display = 'block'; // Show instructions on reset
+            modeSelection.style.display = 'flex';
+            roomOptions.style.display = 'none';
+            gameArea.style.display = 'none';
+            gameInfoContainer.style.display = 'none';
+            postGameOptionsDiv.style.display = 'none';
+            playAgainResponseOptionsDiv.style.display = 'none'; // Hide play again options
+            roomMessage.innerText = '';
+            document.getElementById('local-player-board-container')?.remove();
+            document.getElementById('remote-player-board-container')?.remove();
+            playAgainRequesterSid = null; // Clear requester SID
+            // Reset game state variables
+            localPlayerBoardData = [];
+            remotePlayerBoardData = [];
+            calledNumbers = new Set();
+            localPlayerMarked = Array(5).fill(0).map(() => Array(5).fill(false));
+            remotePlayerMarked = Array(5).fill(0).map(() => Array(5).fill(false));
+            playerNames = {};
+            currentRoomId = null;
+            isHost = false;
+            currentTurnSid = null;
+        }
+
+        document.getElementById('play-online').addEventListener('click', () => {
+            gameInstructionsDiv.style.display = 'none'; // Hide instructions
+            modeSelection.style.display = 'none';
+            roomOptions.style.display = 'flex';
+        });
+
+        document.getElementById('play-local').addEventListener('click', () => {
+            displayMessage('Local Play Not Implemented', 'Local play mode is not yet implemented in this version. Please use "Play Online".');
+            modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+            closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+            gameInstructionsDiv.style.display = 'none'; // Hide instructions even if local play is not implemented
+        });
+
+        createRoomBtn.addEventListener('click', () => {
+            const playerName = playerNameInput.value.trim();
+            if (!playerName) {
+                displayMessage('Name Required', 'Please enter your name to create a room.');
+                modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                return;
+            }
+            socket.emit('create_room', { player_name: playerName });
+            isHost = true;
+            roomOptions.style.display = 'none';
+            gameArea.style.display = 'flex';
+            const player1BoardContainer = document.createElement('div');
+            player1BoardContainer.id = 'local-player-board-container';
+            player1BoardContainer.innerHTML = `<h3>Your Board (${playerName})</h3><div id="local-player-board" class="board"></div><div id="local-player-bingo-progress">Bingo Progress: </div><div id="board-1-message" style="color: red; margin-top: 5px;"></div>`;
+            gameArea.appendChild(player1BoardContainer);
+            createBingoBoard(document.getElementById('local-player-board'), 1);
+
+            const remotePlayerBoardContainer = document.createElement('div');
+            remotePlayerBoardContainer.id = 'remote-player-board-container';
+            remotePlayerBoardContainer.innerHTML = '<h3>Opponent\'s Board</h3><div id="remote-player-board" class="board"></div><div id="remote-player-bingo-progress">Bingo Progress: </div><div id="board-2-message" style="color: red; margin-top: 5px;"></div>';
+            remotePlayerBoardContainer.style.display = 'none';
+            gameArea.appendChild(remotePlayerBoardContainer);
+
+            gameInfoContainer.style.display = 'flex';
+            gameStatusDiv.innerText = 'Waiting for opponent to join and submit their board...';
+            startGameButton = document.getElementById('start-game-button');
+            if (startGameButton) {
+                startGameButton.style.display = 'none';
+            }
+        });
+
+        joinRoomBtn.addEventListener('click', () => {
+            const roomId = roomIdInput.value.trim();
+            const playerName = playerNameInput.value.trim();
+            if (!playerName) {
+                displayMessage('Name Required', 'Please enter your name to join a room.');
+                modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                return;
+            }
+            if (roomId) {
+                socket.emit('join_room', { 'room_id': roomId, 'player_name': playerName });
+                isHost = false;
+                roomOptions.style.display = 'none';
+                gameArea.style.display = 'flex';
+                const player1BoardContainer = document.createElement('div');
+                player1BoardContainer.id = 'local-player-board-container';
+                player1BoardContainer.innerHTML = `<h3>Your Board (${playerName})</h3><div id="local-player-board" class="board"></div><div id="local-player-bingo-progress">Bingo Progress: </div><div id="board-1-message" style="color: red; margin-top: 5px;"></div>`;
+                gameArea.appendChild(player1BoardContainer);
+                createBingoBoard(document.getElementById('local-player-board'), 1);
+
+                const remotePlayerBoardContainer = document.createElement('div');
+                remotePlayerBoardContainer.id = 'remote-player-board-container';
+                remotePlayerBoardContainer.innerHTML = '<h3>Opponent\'s Board</h3><div id="remote-player-board" class="board"></div><div id="remote-player-bingo-progress">Bingo Progress: </div><div id="board-2-message" style="color: red; margin-top: 5px;"></div>';
+                remotePlayerBoardContainer.style.display = 'none';
+                gameArea.appendChild(remotePlayerBoardContainer);
+
+                gameInfoContainer.style.display = 'flex';
+                gameStatusDiv.innerText = 'Waiting for you to submit your board...';
+                startGameButton = document.getElementById('start-game-button');
+                if (startGameButton) {
+                    startGameButton.style.display = 'none';
+                }
+            } else {
+                displayMessage('Input Required', 'Please enter a Room ID.');
+                modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+            }
+        });
+
+        socket.on('room_created', data => {
+            console.log('Event: room_created', data);
+            currentRoomId = data.room_id;
+            document.getElementById('room-id-display').innerText = `Room ID: " ${data.room_id} " Share this with opponent.`;
+        });
+
+        socket.on('room_joined', data => {
+            console.log('Event: room_joined', data);
+            currentRoomId = data.room_id;
+            document.getElementById('room-id-display').innerText = `Joined Room ID: ${data.room_id}.`;
+        });
+
+        socket.on('room_full', data => {
+            displayMessage('Room Full', `Room ${data.room_id} is full.`);
+            modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+            closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+        });
+
+        socket.on('invalid_room', data => {
+            displayMessage('Invalid Room', `Invalid Room ID: ${data.room_id}.`);
+            modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+            closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+        });
+
+        socket.on('user_joined', data => {
+            const opponentName = data.player_name || 'Opponent';
+            roomMessage.innerText = `Opponent (${opponentName}) joined! Submit your board.`;
+            playerNames[data.sid] = opponentName;
+            const remotePlayerBoardContainer = document.getElementById('remote-player-board-container');
+            if (remotePlayerBoardContainer) {
+                remotePlayerBoardContainer.querySelector('h3').innerText = `Opponent's Board (${opponentName})`;
+            }
+
+            if(isHost) {
+                gameStatusDiv.innerText = `${opponentName} has joined the room having ID ${currentRoomId}. Waiting for opponent to submit the board.`;
+            }
+
+            // This condition is crucial for the glitch fix: only show start button if both boards are submitted
+            // and it's the host. The 'boards_received' event will handle the actual board display.
+            if (isHost && localPlayerBoardData.length === 25 && remotePlayerBoardData.length === 25) {
+                if (startGameButton) {
+                    startGameButton.style.display = 'block';
+                    startGameButton.disabled = false;
+                    gameStatusDiv.innerText = 'Both boards submitted. Host can start the game.';
+                }
+            } else if (!isHost) {
+                // For the joining player, ensure their board is ready for input
+                const localBoardDiv = document.getElementById('local-player-board');
+                if (localBoardDiv && localPlayerBoardData.length === 0) { // Only if board not yet submitted
+                    createBingoBoard(localBoardDiv, 1); // Re-create input board
+                    gameStatusDiv.innerText = 'Waiting for you to submit your board...';
+                }
+            }
+        });
+
+        socket.on('user_left', data => {
+            const disconnectedPlayerName = playerNames[data.sid] || 'Opponent';
+            displayMessage('Opponent Left', `${disconnectedPlayerName} disconnected. Game ended. You win!`);
+            modalOkButton.onclick = () => { // Set specific handler
+                modal.style.display = 'none';
+                resetUI();
+            };
+            closeButton.onclick = () => { // Set specific handler
+                modal.style.display = 'none';
+                resetUI();
+            };
+            postGameOptionsDiv.style.display = 'flex';
+            viewOpponentBoardBtn.style.display = 'none';
+            playAgainBtn.style.display = 'block';
+            playAgainBtn.onclick = () => resetUI(); // Reset UI to initial state
+        });
+
+        socket.on('boards_received', data => {
+            console.log('Event: boards_received', data);
+            roomOptions.style.display = 'none';
+            gameArea.style.display = 'flex';
+
+            const sids = Object.keys(data.boards);
+            const player1Sid = sids[0];
+            const player2Sid = sids[1];
+
+            localPlayerBoardData = (playerSid === player1Sid) ? data.boards[player1Sid] : data.boards[player2Sid];
+            remotePlayerBoardData = (playerSid === player1Sid) ? data.boards[player2Sid] : data.boards[player1Sid];
+
+            const localBoardDiv = document.getElementById('local-player-board');
+            const remoteBoardDiv = document.getElementById('remote-player-board');
+
+            updateBoardDisplay(localBoardDiv, localPlayerBoardData);
+            displayOpponentPlaceholderBoard(remoteBoardDiv);
+
+            localPlayerMarked = Array(5).fill(0).map(() => Array(5).fill(false));
+            console.log('localPlayerMarked initialized:', JSON.stringify(localPlayerMarked));
+
+            gameInfoContainer.style.display = 'flex';
+            startGameButton = document.getElementById('start-game-button');
+
+            // Clear the "Board submitted. Waiting for opponent." message
+            const board1MessageDiv = document.getElementById('board-1-message');
+            const board2MessageDiv = document.getElementById('board-2-message');
+            if (board1MessageDiv) board1MessageDiv.innerText = '';
+            if (board2MessageDiv) board2MessageDiv.innerText = '';
+            if (roomMessage) roomMessage.innerText = ''; // Clear general room message too
+
+            if (startGameButton) {
+                startGameButton.addEventListener('click', () => {
+                    if (isHost) {
+                        socket.emit('start_game_button_clicked');
+                        startGameButton.disabled = true;
+                        startGameButton.style.display = 'none';
+                    }
+                });
+                if (isHost) {
+                    startGameButton.style.display = 'block';
+                    startGameButton.disabled = false;
+                    gameStatusDiv.innerText = 'Both boards submitted. Click "Start Game" to begin!';
+                } else {
+                    startGameButton.style.display = 'none';
+                    gameStatusDiv.innerText = 'Both boards submitted. Waiting for host to start the game...';
+                }
+            }
+        });
+
+        socket.on('game_start_signal', data => {
+            console.log('Game start signal received', data);
+            playerNames = data.player_names || {};
+            const localPlayerName = playerNames[playerSid] || 'You';
+            const opponentSid = Object.keys(playerNames).find(sid => sid !== playerSid);
+            const opponentName = playerNames[opponentSid] || 'Opponent';
+
+            gameStatusDiv.innerText = `Game Started! It's ${data.current_turn === playerSid ? localPlayerName : opponentName}'s turn.`;
+
+            document.getElementById('local-player-board-container').querySelector('h3').innerText = `Your Board (${localPlayerName})`;
+            const remotePlayerBoardContainer = document.getElementById('remote-player-board-container');
+            if (remotePlayerBoardContainer) {
+                remotePlayerBoardContainer.querySelector('h3').innerText = `Opponent's Board (${opponentName})`;
+                remotePlayerBoardContainer.style.display = 'none';
+            }
+
+            currentTurnSid = data.current_turn;
+
+            const localBoardDiv = document.getElementById('local-player-board');
+            if (localBoardDiv && localPlayerBoardData.length > 0) {
+                updateBoardDisplay(localBoardDiv, localPlayerBoardData, true, currentTurnSid === playerSid);
+            }
+
+            if (startGameButton) {
+                startGameButton.style.display = 'none';
+            }
+            // Hide play again options if they were visible from a previous game
+            playAgainResponseOptionsDiv.style.display = 'none';
+
+            // Clear the "Board submitted. Waiting for opponent." message
+            const board1MessageDiv = document.getElementById('board-1-message');
+            const board2MessageDiv = document.getElementById('board-2-message');
+            if (board1MessageDiv) board1MessageDiv.innerText = '';
+            if (board2MessageDiv) board2MessageDiv.innerText = '';
+            if (roomMessage) roomMessage.innerText = ''; // Clear general room message too
+        });
+
+        socket.on('number_called', data => {
+            const calledNumber = data.number;
+            const nextTurnSid = data.next_turn;
+            calledNumbers.add(calledNumber);
+            playerNames = data.player_names || {};
+
+            if (numberCallSound) {
+                numberCallSound.currentTime = 0;
+                numberCallSound.play().catch(e => console.error("Error playing sound:", e));
+            }
+
+            const localPlayerName = playerNames[playerSid] || 'You';
+            const nextTurnName = playerNames[nextTurnSid] || (nextTurnSid === playerSid ? 'Your' : 'Opponent\'s');
+
+            const indexInLocalBoard = localPlayerBoardData.indexOf(calledNumber);
+            if (indexInLocalBoard !== -1) {
+                const row = Math.floor(indexInLocalBoard / 5);
+                const col = indexInLocalBoard % 5;
+                localPlayerMarked[row][col] = true;
+                console.log(`Number ${calledNumber} marked at [${row}][${col}]. localPlayerMarked:`, JSON.stringify(localPlayerMarked));
+            }
+
+            gameStatusDiv.innerText = `Number Called: ${calledNumber}. It's ${nextTurnName} turn.`;
+            currentTurnSid = nextTurnSid;
+
+            const localBoardDiv = document.getElementById('local-player-board');
+            const remoteBoardDiv = document.getElementById('remote-player-board');
+            const localBingoProgressDiv = document.getElementById('local-player-bingo-progress');
+            const remoteBingoProgressDiv = document.getElementById('remote-player-bingo-progress');
+
+            if (localBoardDiv && localPlayerBoardData.length > 0) {
+                updateBoardDisplay(localBoardDiv, localPlayerBoardData, true, currentTurnSid === playerSid);
+            }
+            displayOpponentPlaceholderBoard(remoteBoardDiv);
+
+            if (data.bingo_string && localBingoProgressDiv) {
+                const localProgress = data.bingo_string[playerSid];
+                localBingoProgressDiv.innerText = `Bingo Progress: ${localProgress}`;
+            }
+            if (remoteBingoProgressDiv) {
+                remoteBingoProgressDiv.style.display = 'none';
+            }
+        });
+
+        socket.on('bingo_win', data => {
+            playerNames = data.player_names || {};
+            const winnerId = data.winner_sid;
+            const winnerName = playerNames[winnerId] || 'The Winner';
+            const localPlayerName = playerNames[playerSid] || 'You';
+
+            let winnerMessage;
+            if (winnerId === playerSid) {
+                winnerMessage = `BINGO! You (${localPlayerName}) won!`;
+                if (bingoSound) {
+                    bingoSound.currentTime = 0;
+                    bingoSound.play().catch(e => console.error("Error playing win sound:", e));
+                }
+            } else {
+                winnerMessage = `BINGO! ${winnerName} won! You lost.`;
+                if (loseSound) {
+                    loseSound.currentTime = 0;
+                    loseSound.play().catch(e => console.error("Error playing lose sound:", e));
+                }
+            }
+            displayMessage('Game Over', winnerMessage);
+            modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+            closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+
+            postGameOptionsDiv.style.display = 'flex';
+            viewOpponentBoardBtn.style.display = 'block';
+            playAgainBtn.style.display = 'block';
+            playAgainResponseOptionsDiv.style.display = 'none'; // Ensure play again options are hidden
+
+            const sids = Object.keys(data.final_boards);
+            const player1Sid = sids[0];
+            const player2Sid = sids[1];
+
+            const finalLocalBoardData = (playerSid === player1Sid) ? data.final_boards[player1Sid] : data.final_boards[player2Sid];
+            const finalLocalMarked = (playerSid === player1Sid) ? data.final_marked_boards[player1Sid] : data.final_marked_boards[player2Sid];
+            const finalRemoteBoardData = (playerSid === player1Sid) ? data.final_boards[player2Sid] : data.final_boards[player1Sid];
+            const finalRemoteMarked = (playerSid === player1Sid) ? data.final_marked_boards[player2Sid] : data.final_marked_boards[player1Sid];
+
+            const localBoardDiv = document.getElementById('local-player-board');
+            renderFinalBoard(localBoardDiv, finalLocalBoardData, finalLocalMarked, new Set(data.called_numbers_final));
+
+            const remotePlayerBoardContainer = document.getElementById('remote-player-board-container');
+            const remoteBoardDiv = document.getElementById('remote-player-board');
+            const remoteBingoProgressDiv = document.getElementById('remote-player-bingo-progress');
+            const localBingoProgressDiv = document.getElementById('local-player-bingo-progress');
+
+            remotePlayerBoardContainer.style.display = 'block';
+            const opponentSid = Object.keys(playerNames).find(sid => sid !== playerSid);
+            const opponentName = playerNames[opponentSid] || 'Opponent';
+            remotePlayerBoardContainer.querySelector('h3').innerText = `Opponent's Board (${opponentName})`;
+
+            renderFinalBoard(remoteBoardDiv, finalRemoteBoardData, finalRemoteMarked, new Set(data.called_numbers_final));
+            if (remoteBingoProgressDiv && data.bingo_string) {
+                const remoteProgress = (playerSid === player1Sid) ? data.bingo_string[player2Sid] : data.bingo_string[player1Sid];
+                remoteBingoProgressDiv.innerText = `Bingo Progress: ${remoteProgress}`;
+                remoteBingoProgressDiv.style.display = 'block';
+            }
+            if (localBingoProgressDiv && data.bingo_string) {
+                const localProgress = data.bingo_string[playerSid];
+                localBingoProgressDiv.innerText = `Bingo Progress: ${localProgress}`;
+            }
+
+            viewOpponentBoardBtn.onclick = () => {
+                remotePlayerBoardContainer.style.display = 'block';
+                displayMessage('Opponent\'s Board', `This is ${opponentName}'s final board.`);
+                modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+            };
+            // Modified playAgainBtn.onclick to send request
+            playAgainBtn.onclick = () => {
+                socket.emit('request_play_again');
+                displayMessage('Play Again Request Sent', 'Waiting for your opponent to respond...');
+                modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                playAgainBtn.disabled = true; // Disable button after sending request
+            };
+        });
+
+        socket.on('game_over', data => {
+            playerNames = data.player_names || {};
+            const winnerSid = data.winner_sid;
+            const winnerName = playerNames[winnerSid] || 'The Winner';
+            const localPlayerName = playerNames[playerSid] || 'You';
+
+            let gameOverMessage;
+            if (winnerSid === playerSid) {
+                gameOverMessage = `Game Over: You (${localPlayerName}) won! ${data.message}`;
+                if (bingoSound) {
+                    bingoSound.currentTime = 0;
+                    bingoSound.play().catch(e => console.error("Error playing win sound:", e));
+                }
+            } else {
+                gameOverMessage = `Game Over: You lost! ${winnerName} won. ${data.message}`;
+                if (loseSound) {
+                    loseSound.currentTime = 0;
+                    loseSound.play().catch(e => console.error("Error playing lose sound:", e));
+                }
+            }
+
+            displayMessage('Game Over', gameOverMessage);
+            modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+            closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+
+            postGameOptionsDiv.style.display = 'flex';
+            viewOpponentBoardBtn.style.display = 'none'; // Opponent's board might not be fully available on disconnect
+            playAgainBtn.style.display = 'block';
+            playAgainResponseOptionsDiv.style.display = 'none'; // Ensure play again options are hidden
+
+            // Ensure local player's board is always displayed, even if opponent disconnected/rejected
+            const localBoardDiv = document.getElementById('local-player-board');
+            if (localBoardDiv && localPlayerBoardData.length > 0) {
+                // Use the last known localPlayerBoardData and localPlayerMarked for rendering
+                // If data.final_boards for local player exists, use that, otherwise rely on current state
+                const finalLocalBoardData = data.final_boards[playerSid] || localPlayerBoardData;
+                const finalLocalMarked = data.final_marked_boards[playerSid] || localPlayerMarked;
+                renderFinalBoard(localBoardDiv, finalLocalBoardData, finalLocalMarked, new Set(data.called_numbers_final));
+            }
+
+
+            // Modified playAgainBtn.onclick to send request
+            playAgainBtn.onclick = () => {
+                socket.emit('request_play_again');
+                displayMessage('Play Again Request Sent', 'Waiting for your opponent to respond...');
+                modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                playAgainBtn.disabled = true; // Disable button after sending request
+            };
+
+            // This block for remote board display might need adjustment if opponent's data is truly absent
+            // For now, if final_boards has remote data, display it, otherwise keep it hidden.
+            if (data.final_boards && Object.keys(data.final_boards).length > 1) {
+                const opponentSid = Object.keys(playerNames).find(sid => sid !== playerSid);
+                const finalRemoteBoardData = data.final_boards[opponentSid];
+                const finalRemoteMarked = data.final_marked_boards[opponentSid];
+                const remotePlayerBoardContainer = document.getElementById('remote-player-board-container');
+                const remoteBoardDiv = document.getElementById('remote-player-board');
+
+                if (remotePlayerBoardContainer && remoteBoardDiv && finalRemoteBoardData && finalRemoteMarked) {
+                    remotePlayerBoardContainer.style.display = 'block';
+                    const opponentName = playerNames[opponentSid] || 'Opponent';
+                    remotePlayerBoardContainer.querySelector('h3').innerText = `Opponent's Board (${opponentName})`;
+                    renderFinalBoard(remoteBoardDiv, finalRemoteBoardData, finalRemoteMarked, new Set(data.called_numbers_final));
+                }
+            }
+
+
+            const remoteBingoProgressDiv = document.getElementById('remote-player-bingo-progress');
+            const localBingoProgressDiv = document.getElementById('local-player-bingo-progress');
+
+            if (remoteBingoProgressDiv && data.bingo_string) {
+                const opponentSid = Object.keys(playerNames).find(sid => sid !== playerSid);
+                const remoteProgress = data.bingo_string[opponentSid];
+                if (remoteProgress !== undefined) { // Check if opponent's progress exists
+                    remoteBingoProgressDiv.innerText = `Bingo Progress: ${remoteProgress}`;
+                    remoteBingoProgressDiv.style.display = 'block';
+                } else {
+                    remoteBingoProgressDiv.style.display = 'none'; // Hide if no opponent progress
+                }
+            }
+            if (localBingoProgressDiv && data.bingo_string) {
+                const localProgress = data.bingo_string[playerSid];
+                localBingoProgressDiv.innerText = `Bingo Progress: ${localProgress}`;
+            }
+        });
+
+        // New Socket.IO event handlers for Play Again feature
+        socket.on('play_again_requested', data => {
+            console.log('Event: play_again_requested', data);
+            playAgainRequesterSid = data.requester_sid;
+            const requesterName = data.requester_name || 'Opponent';
+
+            // Hide post-game options and show play again response options
+            postGameOptionsDiv.style.display = 'none';
+            playAgainResponseOptionsDiv.style.display = 'flex';
+            playAgainRequestMessage.innerText = `${requesterName} wants to play again!`;
+            // Close any open modal
+            modal.style.display = 'none';
+            // Ensure modal buttons are reset to default after this message
+            modalOkButton.onclick = () => modal.style.display = 'none';
+            closeButton.onclick = () => modal.style.display = 'none';
+        });
+
+        socket.on('play_again_rejected', data => {
+            console.log('Event: play_again_rejected', data);
+            const rejecterName = data.rejecter_name || 'Opponent';
+            displayMessage('Play Again Rejected', `${rejecterName} rejected your request to play again. They have left the room.`);
+            // Reset UI to initial state after rejection
+            modalOkButton.onclick = () => {
+                modal.style.display = 'none';
+                resetUI();
+            };
+            closeButton.onclick = () => {
+                modal.style.display = 'none';
+                resetUI();
+            };
+        });
+
+        socket.on('play_again_response_status', data => {
+            console.log('Event: play_again_response_status', data);
+            const responderName = data.responder_name || 'Opponent';
+            if (data.status === 'accepted_waiting') {
+                displayMessage('Play Again Accepted', `${responderName} accepted your request! Waiting for them to confirm.`);
+                modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+                playAgainBtn.disabled = true; // Keep disabled
+            }
+        });
+
+        socket.on('game_reset_for_play_again', data => {
+            console.log('Event: game_reset_for_play_again', data);
+            displayMessage('Game Reset', 'Both players are ready! Starting a new game...');
+            modalOkButton.onclick = () => {
+                modal.style.display = 'none';
+                // Reset game variables
+                localPlayerBoardData = [];
+                remotePlayerBoardData = [];
+                calledNumbers = new Set();
+                localPlayerMarked = Array(5).fill(0).map(() => Array(5).fill(false));
+                remotePlayerMarked = Array(5).fill(0).map(() => Array(5).fill(false));
+                playAgainRequesterSid = null; // Clear requester SID
+
+                // Hide post-game options and play again response options
+                postGameOptionsDiv.style.display = 'none';
+                playAgainResponseOptionsDiv.style.display = 'none';
+
+                // Re-create boards for input
+                const localPlayerBoardContainer = document.getElementById('local-player-board-container');
+                const remotePlayerBoardContainer = document.getElementById('remote-player-board-container');
+
+                if (localPlayerBoardContainer) {
+                    const localPlayerName = playerNames[playerSid] || 'You';
+                    localPlayerBoardContainer.innerHTML = `<h3>Your Board (${localPlayerName})</h3><div id="local-player-board" class="board"></div><div id="local-player-bingo-progress">Bingo Progress: </div><div id="board-1-message" style="color: red; margin-top: 5px;"></div>`;
+                    createBingoBoard(document.getElementById('local-player-board'), 1);
+                }
+                if (remotePlayerBoardContainer) {
+                    const opponentSid = Object.keys(playerNames).find(sid => sid !== playerSid);
+                    const opponentName = playerNames[opponentSid] || 'Opponent';
+                    remotePlayerBoardContainer.innerHTML = `<h3>Opponent's Board (${opponentName})</h3><div id="remote-player-board" class="board"></div><div id="remote-player-bingo-progress">Bingo Progress: </div><div id="board-2-message" style="color: red; margin-top: 5px;"></div>`;
+                    remotePlayerBoardContainer.style.display = 'none'; // Keep hidden until opponent submits board
+                }
+
+                gameInfoContainer.style.display = 'flex';
+                gameStatusDiv.innerText = 'Both players need to submit new boards...';
+                if (startGameButton) {
+                    startGameButton.style.display = 'none'; // Hide start game button initially
+                }
+                playAgainBtn.disabled = false; // Re-enable play again button for future use
+            };
+            closeButton.onclick = modalOkButton.onclick; // Make close button do the same
+        });
+
+        // Event listeners for new Play Again buttons
+        acceptPlayAgainBtn.addEventListener('click', () => {
+            socket.emit('respond_play_again', { response: 'accept', requester_sid: playAgainRequesterSid });
+            displayMessage('Play Again Accepted', 'Waiting for opponent to accept...');
+            modalOkButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+            closeButton.onclick = () => modal.style.display = 'none'; // Set specific handler
+            playAgainResponseOptionsDiv.style.display = 'none'; // Hide options after responding
+        });
+
+        rejectPlayAgainBtn.addEventListener('click', () => {
+            socket.emit('respond_play_again', { response: 'reject', requester_sid: playAgainRequesterSid });
+            displayMessage('Play Again Rejected', 'You have rejected the request and left the room.');
+            playAgainResponseOptionsDiv.style.display = 'none'; // Hide options after responding
+            // The backend will handle the opponent's notification and room cleanup
+            modalOkButton.onclick = () => {
+                modal.style.display = 'none';
+                resetUI(); // Reset UI to initial state after rejection
+            };
+            closeButton.onclick = () => {
+                modal.style.display = 'none';
+                resetUI(); // Reset UI to initial state after rejection
+            };
+        });
+
+        /**
+         * Highlights completed Bingo lines on the local player's board.
+         * This function is called after the local board display is updated.
+         */
+        function highlightBingoLines() {
+            const localBoardDiv = document.getElementById('local-player-board');
+            if (!localBoardDiv || localPlayerBoardData.length === 0) return;
+
+            const cells = Array.from(localBoardDiv.children);
+
+            cells.forEach(cell => cell.classList.remove('bingo-line'));
+
+            console.log('Checking for bingo lines. Current localPlayerMarked:', JSON.stringify(localPlayerMarked));
+
+            for (let r = 0; r < 5; r++) {
+                if (localPlayerMarked[r].every(cellMarked => cellMarked)) {
+                    console.log('Row ' + r + ' is complete!');
+                    for (let c = 0; c < 5; c++) {
+                        const cellToHighlight = cells[r * 5 + c];
+                        cellToHighlight.classList.add('bingo-line');
+                        console.log(`Row highlight: Cell at [${r}][${c}] (number ${cellToHighlight.dataset.number}) has classes: ${cellToHighlight.className}`);
+                        setTimeout(() => {
+                            const computedStyle = window.getComputedStyle(cellToHighlight);
+                            console.log(`Row highlight: Computed background-color for cell ${cellToHighlight.dataset.number}: ${computedStyle.backgroundColor}`);
+                        }, 10);
+                    }
+                }
+            }
+
+            for (let c = 0; c < 5; c++) {
+                let columnComplete = true;
+                for (let r = 0; r < 5; r++) {
+                    if (!localPlayerMarked[r][c]) {
+                        columnComplete = false;
+                        break;
+                    }
+                }
+                if (columnComplete) {
+                    console.log('Column ' + c + ' is complete!');
+                    for (let r = 0; r < 5; r++) {
+                        const cellToHighlight = cells[r * 5 + c];
+                        cellToHighlight.classList.add('bingo-line');
+                        console.log(`Column highlight: Cell at [${r}][${c}] (number ${cellToHighlight.dataset.number}) has classes: ${cellToHighlight.className}`);
+                        setTimeout(() => {
+                            const computedStyle = window.getComputedStyle(cellToHighlight);
+                            console.log(`Column highlight: Computed background-color for cell ${cellToHighlight.dataset.number}: ${computedStyle.backgroundColor}`);
+                        }, 10);
+                    }
+                }
+            }
+
+            let diagonal1Complete = true;
+            for (let i = 0; i < 5; i++) {
+                if (!localPlayerMarked[i][i]) {
+                    diagonal1Complete = false;
+                    break;
+                }
+            }
+            if (diagonal1Complete) {
+                console.log('Main diagonal is complete!');
+                for (let i = 0; i < 5; i++) {
+                    const cellToHighlight = cells[i * 5 + i];
+                    cellToHighlight.classList.add('bingo-line');
+                    console.log(`Main diagonal highlight: Cell at [${i}][${i}] (number ${cellToHighlight.dataset.number}) has classes: ${cellToHighlight.className}`);
+                    setTimeout(() => {
+                        const computedStyle = window.getComputedStyle(cellToHighlight);
+                        console.log(`Main diagonal highlight: Computed background-color for cell ${cellToHighlight.dataset.number}: ${computedStyle.backgroundColor}`);
+                        }, 10);
+                }
+            }
+
+            let diagonal2Complete = true;
+            for (let i = 0; i < 5; i++) {
+                if (!localPlayerMarked[i][4 - i]) {
+                    diagonal2Complete = false;
+                    break;
+                }
+            }
+            if (diagonal2Complete) {
+                console.log('Anti-diagonal is complete!');
+                for (let i = 0; i < 5; i++) {
+                    const cellToHighlight = cells[i * 5 + (4 - i)];
+                    cellToHighlight.classList.add('bingo-line');
+                    console.log(`Anti-diagonal highlight: Cell at [${i}][${4-i}] (number ${cellToHighlight.dataset.number}) has classes: ${cellToHighlight.className}`);
+                    setTimeout(() => {
+                        const computedStyle = window.getComputedStyle(cellToHighlight);
+                        console.log(`Anti-diagonal highlight: Computed background-color for cell ${cellToHighlight.dataset.number}: ${computedStyle.backgroundColor}`);
+                    }, 10);
+                }
+            }
+        }
+    </script>
+    {% endraw %}
+</body>
+</html>

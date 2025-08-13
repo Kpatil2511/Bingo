@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Online Bingo - Room</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <!-- Google AdSense Script - Place this once in your head -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_PUBLISHER_ID" crossorigin="anonymous"></script>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #050517; /* Dark background fallback */
+            color: #f0f0f0; /* Light text */
+            margin: 0;
+            padding: 0;
+            min-height: 100vh; /* Ensure body takes full viewport height */
+            overflow-x: hidden; /* Prevent horizontal scroll */
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+            /* New: Background Image Styles */
+
+            background-size: cover; /* Cover the entire viewport */
+            background-position: center; /* Center the background image */
+            background-repeat: no-repeat; /* Do not repeat the image */
+            background-attachment: fixed; /* Keep background fixed when scrolling */
+        }
+
+        /* Styling for the new image title */
+        #bingo_title_image {
+            max-width: 100%; /* Ensure image is responsive */
+            height: auto;    /* Maintain aspect ratio */
+            width: 300px;      /* Adjust width to maintain aspect ratio within constraints */
+            height: 125px;     /* Adjust height to maintain aspect ratio within constraints */
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 15px rgba(255, 64, 129, 0.8)); /* Add a glow effect matching the theme */
+        }
+
+        h3 {
+            color: #64FFDA; /* Neon teal */
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px #64FFDA; /* Glow effect */
+            font-size: 1.5em;
+        }
+
+        /* Main Content Wrapper for Ads Layout */
+        #main-content-wrapper {
+            display: flex;
+            flex-direction: row; /* Default to row for wider screens */
+            justify-content: center;
+            align-items: flex-start; /* Align items to the top */
+            width: 100%; /* Take full width to allow ads on sides */
+            flex-grow: 1; /* Allow it to grow and fill available space */
+        }
+
+        /* Ad Containers */
+        .ad-container {
+            flex-shrink: 0; /* Prevent ads from shrinking */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* Placeholder styling for visibility */
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px dashed #64FFDA;
+            margin: 10px; /* Default margin */
+            min-height: 100px; /* Minimum height for ad visibility (responsive) */
+            overflow: hidden; /* Hide overflowing ad content */
+        }
+
+        /* Specific adjustments for the actual ad elements within the container */
+        .ad-container ins.adsbygoogle {
+            background-color: transparent !important; /* Ensure AdSense doesn't override background */
+            border: none !important; /* Ensure AdSense doesn't override border */
+        }
+
+
+        /* Main Game Content Area */
+        #game-content-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-grow: 1; /* Allow this area to grow */
+            max-width: 900px; /* Max width for the game content itself */
+            width: 100%; /* Default to 100% within its flex container */
+        }
+
+        /* Room Options */
+        #room-options {
+            display: flex; /* Changed to flex as this is the primary content */
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.1); /* Translucent white */
+            border: 2px solid #4A148C; /* Neon purple border */
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(74, 20, 140, 0.5); /* Glow effect */
+            width: 100%; /* Fill parent container */
+            max-width: 500px; /* Max width for larger screens */
+            box-sizing: border-box;
+            margin-left: auto; /* Center the element */
+            margin-right: auto; /* Center the element */
+        }
+
+        #room-options div {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap; /* Allow elements inside to wrap */
+            justify-content: center;
+        }
+
+        #player-name-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        #player-name-input,
+        #room-id-input {
+            padding: 10px;
+            border: 2px solid #1DE9B6; /* Neon green border */
+            border-radius: 8px;
+            background-color: rgba(0, 0, 0, 0.3); /* Translucent dark */
+            color: #f0f0f0;
+            font-size: 1em;
+            width: 100%; /* Make inputs fluid */
+            max-width: 250px; /* Limit max width */
+            box-sizing: border-sizing;
+        }
+
+        #room-message {
+            color: #FFAB40; /* Neon orange */
+            font-weight: bold;
+            margin-top: 10px;
+            text-align: center;
+            text-shadow: 0 0 8px #FF4081; /* Glow effect */
+        }
+
+        /* Buttons */
+        #room-options button {
+            padding: 12px 25px;
+            font-size: 18px;
+            background-color: #2962FF; /* Neon blue */
+            color: #f0f0f0;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(41, 98, 255, 0.5); /* Stronger shadow */
+            transition: all 0.3s ease-in-out;
+            margin: 5px; /* Add margin for spacing between buttons */
+        }
+
+        #room-options button:hover:not(:disabled) {
+            background-color: #651FFF; /* Neon purple hover */
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(101, 31, 255, 0.7); /* Stronger hover shadow */
+        }
+
+        #room-options button:disabled {
+            background-color: #616161;
+            color: #BDBDBD;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7); /* Darker overlay */
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #1A237E; /* Dark modal background */
+            margin: auto;
+            padding: 20px;
+            border: 2px solid #FF4081; /* Neon pink border */
+            width: 80%;
+            max-width: 400px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 64, 129, 0.5); /* Modal glow */
+            text-align: center;
+            position: relative;
+            color: #f0f0f0;
+            box-sizing: border-box;
+        }
+
+        .close-button {
+            color: #f0f0f0;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            text-shadow: 0 0 5px #f0f0f0;
+        }
+
+        .modal-title {
+            margin-bottom: 15px;
+            color: #FFD700; /* Neon gold */
+            text-shadow: 0 0 8px #FFD700;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-ok-button {
+            padding: 10px 20px;
+            background-color: #2962FF; /* Neon blue */
+            color: #f0f0f0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(41, 98, 255, 0.4);
+            transition: background-color 0.3s ease;
+        }
+
+        .modal-ok-button:hover {
+            background-color: #651FFF; /* Neon purple */
+        }
+
+        /* Footer Styles */
+        footer {
+            margin-top: auto; /* Pushes footer to the bottom */
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.3); /* Slightly transparent dark background */
+            width: 100%;
+            text-align: center;
+            color: #B0BEC5; /* Light grey text */
+            font-size: 0.9em;
+            border-top: 1px solid rgba(100, 255, 218, 0.2); /* Subtle neon border top */
+            box-sizing: border-box;
+        }
+
+        footer p {
+            margin: 5px 0;
+        }
+
+        footer a {
+            color: #64FFDA; /* Neon teal for links */
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+
+        footer a:hover {
+            color: #1DE9B6; /* Lighter neon green on hover */
+            text-decoration: underline;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 992px) { /* Tablet/Mobile breakpoint for stacking */
+            #main-content-wrapper {
+                flex-direction: column; /* Stack content vertically */
+                align-items: center; /* Center stacked items */
+            }
+
+            .ad-container {
+                width: 90%; /* Take more width on mobile/tablet when stacked */
+                max-width: 728px; /* Standard leaderboard size */
+                height: auto; /* Allow height to be determined by ad content */
+                margin: 15px auto; /* Center ads and add more vertical space */
+            }
+        }
+
+        @media (min-width: 993px) { /* Desktop breakpoint for side-by-side ads */
+            .ad-container {
+                width: 160px; /* Standard skyscraper width */
+                height: 600px; /* Standard skyscraper height */
+                margin: 10px; /* Margin for side ads */
+            }
+        }
+
+        @media (max-width: 768px) {
+            /* Adjust image size for smaller screens */
+            #bingo_title_image {
+                width: 80%; /* Smaller width on mobile */
+                height: auto;
+            }
+            h3 {
+                font-size: 1.3em; /* Smaller h3 on mobile */
+            }
+            #room-options button {
+                padding: 10px 20px;
+                font-size: 16px;
+            }
+            #player-name-input, #room-id-input {
+                font-size: 0.9em;
+                padding: 8px;
+            }
+            footer {
+                padding: 15px;
+                font-size: 0.8em;
+            }
+        }
+        @media (max-width: 480px) {
+            #bingo_title_image {
+                width: 70%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <img id="bingo_title_image" src="/static/bingo_title_image.png" alt="Online Bingo Title" onerror="this.onerror=null; this.src='https://placehold.co/300x100/FF4081/FFFFFF?text=BINGO+IMAGE+ERROR'; console.error('Image failed to load: bingo_title_image.png. Please check filename and path.');">
+
+    <div id="main-content-wrapper">
+        <div class="ad-container left-ad">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-YOUR_ADSENSE_PUBLISHER_ID"
+                 data-ad-slot="YOUR_ADSENSE_AD_SLOT_ID_1"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+                 (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+        </div>
+
+        <div id="game-content-area">
+            <div id="room-options">
+                <div id="player-name-container">
+                    <label for="player-name-input" style="color: #f0f0f0; text-shadow: 0 0 5px #f0f0f0;">Your Name:</label>
+                    <input type="text" id="player-name-input" placeholder="Enter your name" value="Player">
+                </div>
+                <button id="create-room-btn">Create Room</button>
+                <div>
+                    <label for="room-id-input" style="color: #f0f0f0; text-shadow: 0 0 5px #f0f0f0;">Join Room ID:</label>
+                    <input type="text" id="room-id-input" placeholder="Enter Room ID">
+                    <button id="join-room-btn">Join</button>
+                </div>
+                <div id="room-message"></div>
+            </div>
+        </div>
+
+        <div class="ad-container right-ad">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-YOUR_ADSENSE_PUBLISHER_ID"
+                 data-ad-slot="YOUR_ADSENSE_AD_SLOT_ID_2"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+                 (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+        </div>
+    </div>
+
+    <div id="message-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">×</span>
+            <h2 id="modal-title" class="modal-title"></h2>
+            <p id="modal-body" class="modal-body"></p>
+            <button id="modal-ok-button" class="modal-ok-button">OK</button>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2024 Online Bingo. Developed by Kanhaiya Ishwar Patil.</p>
+        <p>To get the daily dose of Comedy</p>
+        <p>
+            <a href="https://www.instagram.com/your_insta_id" target="_blank" rel="noopener noreferrer">Instagram</a> |
+            <a href="https://www.youtube.com/channel/your_youtube_id" target="_blank" rel="noopener noreferrer">YouTube</a>
+        </p>
+    </footer>
+
+    {% raw %}
+    <script>
+        const socket = io();
+        const createRoomBtn = document.getElementById('create-room-btn');
+        const joinRoomBtn = document.getElementById('join-room-btn');
+        const roomIdInput = document.getElementById('room-id-input');
+        const playerNameInput = document.getElementById('player-name-input');
+        const roomMessage = document.getElementById('room-message');
+
+        let playerSid;
+        let isHost = false;
+
+        const modal = document.getElementById('message-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalOkButton = document.getElementById('modal-ok-button');
+        const closeButton = document.querySelector('.close-button');
+
+        function displayMessage(title, message) {
+            modalTitle.innerText = title;
+            modalBody.innerText = message;
+            modal.style.display = 'flex';
+        }
+
+        modalOkButton.onclick = () => modal.style.display = 'none';
+        closeButton.onclick = () => modal.style.display = 'none';
+
+        socket.on('connect', () => {
+            playerSid = socket.id;
+            console.log('Connected client SID:', playerSid);
+        });
+
+        createRoomBtn.addEventListener('click', () => {
+            const playerName = playerNameInput.value.trim();
+            if (!playerName) {
+                displayMessage('Name Required', 'Please enter your name to create a room.');
+                return;
+            }
+            socket.emit('create_room', { player_name: playerName });
+            isHost = true;
+            roomMessage.innerText = 'Creating room...';
+        });
+
+        joinRoomBtn.addEventListener('click', () => {
+            const roomId = roomIdInput.value.trim();
+            const playerName = playerNameInput.value.trim();
+            if (!playerName) {
+                displayMessage('Name Required', 'Please enter your name to join a room.');
+                return;
+            }
+            if (roomId) {
+                socket.emit('join_room', { 'room_id': roomId, 'player_name': playerName });
+                isHost = false;
+                roomMessage.innerText = 'Attempting to join room...';
+            } else {
+                displayMessage('Input Required', 'Please enter a Room ID.');
+            }
+        });
+
+        socket.on('room_created', data => {
+            console.log('Event: room_created', data);
+            const roomId = data.room_id;
+            const playerName = playerNameInput.value.trim();
+            roomMessage.innerText = `Room ID: "${roomId}" created. Share this with opponent. Waiting for opponent to join...`;
+            // Redirect to game.html with room ID and player name
+            window.location.href = `/game.html?room_id=${roomId}&player_name=${encodeURIComponent(playerName)}`;
+        });
+
+        socket.on('room_joined', data => {
+            console.log('Event: room_joined', data);
+            const roomId = data.room_id;
+            const playerName = playerNameInput.value.trim();
+            roomMessage.innerText = `Joined Room ID: ${roomId}. Waiting for host to start game...`;
+            // Redirect to game.html with room ID and player name
+            window.location.href = `/game.html?room_id=${roomId}&player_name=${encodeURIComponent(playerName)}`;
+        });
+
+        socket.on('room_full', data => {
+            displayMessage('Room Full', `Room ${data.room_id} is full.`);
+            roomMessage.innerText = `Room ${data.room_id} is full. Try another ID or create a new room.`;
+        });
+
+        socket.on('invalid_room', data => {
+            displayMessage('Invalid Room', `Invalid Room ID: ${data.room_id}.`);
+            roomMessage.innerText = `Invalid Room ID: ${data.room_id}. Please check the ID and try again.`;
+        });
+
+        socket.on('user_joined', data => {
+             // This event is primarily for updating the host's view.
+             // The joining player is already redirected by 'room_joined'.
+             // The host will be redirected by 'room_created' and then 'boards_received' will trigger game setup.
+             console.log(`Opponent (${data.player_name}) joined the room.`);
+        });
+    </script>
+    {% endraw %}
+</body>
+</html>
